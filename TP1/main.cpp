@@ -1,6 +1,8 @@
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
+#include <glimac/Program.hpp>
+#include <glimac/FilePath.hpp>
 
 int window_width  = 1280;
 int window_height = 720;
@@ -27,8 +29,9 @@ static void size_callback(GLFWwindow* /*window*/, int width, int height)
     window_height = height;
 }
 
-int main()
+int main(int, char** argv)
 {
+
     /* Initialize the library */
     if (!glfwInit()) {
         return -1;
@@ -65,22 +68,34 @@ int main()
 
     /*à partir d'ici initialisation : création des meshes, etc, tout ce qui est avant la boucle while*/
 
+    glimac::FilePath applicationPath(argv[0]);
+    glimac::Program program = loadProgram(applicationPath.dirPath() + "TP1/shaders/triangle.vs.glsl",
+                                           applicationPath.dirPath() + "TP1/shaders/triangle.fs.glsl");
+    program.use();
+
     // Créer et modifier le VBO
     GLuint vbo; // variable dans laquelle sera stockée l'identifiant du VBO créé (tableaux si on crée plusieurs)
     glGenBuffers(1, &vbo); // on crée 1 vbo, son ID stocké dans l'unsigned int "vbo"
     glBindBuffer(GL_ARRAY_BUFFER, vbo); // pour pouvoir modifier notre VBO, on le bind à la cible GL_ARRAY_BUFFER (qui utilisée pour ça spécifiquement)
-    GLfloat vertices[] = {-0.5f, -0.5f, 0.5f, -0.5f, 0.0f, 0.5f}; // on stocke les coordonnées 2D des 3 vertex du triangle
-    glBufferData(GL_ARRAY_BUFFER, 6*sizeof(GLfloat), vertices, GL_STATIC_DRAW); // on transmet les valeurs du tableau à la cible, GL_ARRAY_BUFFER. Le 2e paramètre est la taille du tableau en octets qui est le nombre de coordonnées * la taille d'un float (en général)
+    // on stocke les coordonnées 2D des 3 vertex du triangle (soit 2 valeurs par vertice pour les coordonnées, soit 5 pour avoir la couleur avec)
+    GLfloat vertices[] = {-0.5f, -0.5f, 1.f, 0.f, 0.f, // premier sommet
+                          0.5f, -0.5f, 0.f, 1.f, 0.f, // deuxième sommet
+                          0.0f, 0.5f, 0.f, 0.f, 1.f // troisème sommet
+    };
+    glBufferData(GL_ARRAY_BUFFER, 15*sizeof(GLfloat), vertices, GL_STATIC_DRAW); // on transmet les valeurs du tableau à la cible, GL_ARRAY_BUFFER. Le 2e paramètre est la taille du tableau en octets qui est le nombre de coordonnées * la taille d'un float (en général)
     glBindBuffer(GL_ARRAY_BUFFER, 0); // on débind une fois nos modifications effectuées
 
     // Créer le VAO
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao); // on bind, cette fois 1 seul paramètre car les VAO ne vont que sur une seule cible
-    const GLuint VERTEX_ATTR_POSITION = 0;
-    glEnableVertexAttribArray(VERTEX_ATTR_POSITION); // 0 correspond par défaut à l'attribut position, on active cet attribut
+    const GLuint VERTEX_ATTR_POSITION = 3;
+    const GLuint VERTEX_COLOR_POSITION = 8;
+    glEnableVertexAttribArray(VERTEX_ATTR_POSITION); // 0 correspond par défaut à l'attribut position, ici on utilise 3 ce qui est précisé dans le fichier de shader
+    glEnableVertexAttribArray(VERTEX_COLOR_POSITION);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glVertexAttribPointer(VERTEX_ATTR_POSITION, 2, GL_FLOAT, GL_FALSE, 2*sizeof(GLfloat), 0);
+    glVertexAttribPointer(VERTEX_ATTR_POSITION, 2, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), 0); // ID de position, taille de l'attribut (2 pour les coordonnées), composants de type float, osef, stride qui est le nobre d'octets de l'attribut pour un sommet, pointeur qui est le décalage par rapport au début de l'attribut (ici 0 car première instance dans l'attribut)
+    glVertexAttribPointer(VERTEX_COLOR_POSITION, 3, GL_FLOAT, GL_FALSE, 5*sizeof(GLfloat), (const GLvoid*)(2*sizeof(GLfloat))); // ID position, taille (3 pour la couleur), ..., ..., stride identique car même attribut, pointeur différent car la couleur arrive après la position dans l'attribut, donc on met la taille de la position
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 
 
