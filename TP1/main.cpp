@@ -102,21 +102,61 @@ int main(int, char** argv)
     //                          0.5f, -0.5f, 0.f, 1.f, 0.f, // deuxième sommet
     //                          0.0f, 0.5f, 0.f, 0.f, 1.f // troisème sommet
     //    };
-    std::vector<Vertex2DColor> vertices = {
-        Vertex2DColor(glm::vec2(-0.5, 0.5), glm::vec3(1, 0, 0)),
-        Vertex2DColor(glm::vec2(0.5, 0.5), glm::vec3(0, 1, 0)),
-        Vertex2DColor(glm::vec2(0.5, -0.5), glm::vec3(0, 0, 1)),
-        Vertex2DColor(glm::vec2(0.5, -0.5), glm::vec3(0, 0, 1)),
-        Vertex2DColor(glm::vec2(-0.5, -0.5), glm::vec3(0, 1, 0)),
-        Vertex2DColor(glm::vec2(-0.5, 0.5), glm::vec3(1, 0, 0))
-    };
-    glBufferData(GL_ARRAY_BUFFER, vertices.size()*sizeof(Vertex2DColor)*2, vertices.data(), GL_STATIC_DRAW); // on transmet les valeurs du tableau à la cible, GL_ARRAY_BUFFER. Le 2e paramètre est la taille du tableau en octets qui est le nombre de coordonnées * la taille d'un float (en général)
+    std::vector<Vertex2DColor> vertices;
+
+    int n_sectors = 200;
+    float R = 0.5;
+
+    // centre
+    vertices.push_back(Vertex2DColor(glm::vec2(0,0), glm::vec3(0, 0, 1)));
+
+    for (int i = 0; i <= n_sectors + 1; i++) {
+
+        // sommet i
+        vertices.push_back(Vertex2DColor(
+            glm::vec2(R * glm::cos(2 * i * glm::pi<float>() / (float)n_sectors),
+                      R * glm::sin(2 * i * glm::pi<float>() / (float)n_sectors)),
+            glm::vec3(1, 0, 0)));
+    }
+
+    // => Tableau d'indices: ce sont les indices des sommets à dessiner
+    // Chaque indice correspond au sommet correspondant dans le VBO
+    std::vector<GLuint> indices;
+    for (int i = 1; i < n_sectors; i++) {
+        indices.push_back(0);
+        indices.push_back(i);
+        indices.push_back(i + 1);
+    }
+    indices.push_back(0);
+    indices.push_back(n_sectors);
+    indices.push_back(1);
+
+    glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(Vertex2DColor), vertices.data(), GL_STATIC_DRAW); // on transmet les valeurs du tableau à la cible, GL_ARRAY_BUFFER. Le 2e paramètre est la taille du tableau en octets qui est le nombre de coordonnées * la taille d'un float (en général)
     glBindBuffer(GL_ARRAY_BUFFER, 0); // on débind une fois nos modifications effectuées
+
+    // => Creation du IBO
+    GLuint ibo;
+    glGenBuffers(1, &ibo);
+
+    // => On bind sur GL_ELEMENT_ARRAY_BUFFER, cible reservée pour les IBOs
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+
+    // => On remplit l'IBO avec les indices:
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.size() * sizeof(uint32_t),
+                 indices.data(), GL_STATIC_DRAW);
+
+    // => Comme d'habitude on debind avant de passer à autre chose
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 
     // Créer le VAO
     GLuint vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao); // on bind, cette fois 1 seul paramètre car les VAO ne vont que sur une seule cible
+
+    // => On bind l'IBO sur GL_ELEMENT_ARRAY_BUFFER; puisqu'un VAO est
+    // actuellement bindé, cela a pour effet d'enregistrer l'IBO dans le VAO
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ibo);
+
     const GLuint VERTEX_ATTR_POSITION = 3;
     const GLuint VERTEX_COLOR_POSITION = 8;
     glEnableVertexAttribArray(VERTEX_ATTR_POSITION); // 0 correspond par défaut à l'attribut position, ici on utilise 3 ce qui est précisé dans le fichier de shader
@@ -132,7 +172,8 @@ int main(int, char** argv)
         glClear(GL_COLOR_BUFFER_BIT);
 
         /*Code de rendu ici*/
-        glDrawArrays(GL_TRIANGLES, 0, 6);
+        // glDrawArrays(GL_TRIANGLES, 0, 3 * n * sizeof(Vertex2DColor));
+        glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 
         /* Swap front and back buffers */
         glfwSwapBuffers(window);
